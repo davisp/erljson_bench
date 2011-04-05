@@ -1,0 +1,4 @@
+*.o
+*.so
+*.beam
+ebin/ejson_test.app

@@ -2,27 +2,28 @@
 
 -export([main/1]).
 
-workers() -> 1.
-iters() -> 1.
+workers() -> 10.
+iters() -> 1000.
+docname() -> "data/large_doc.erl".
 
 %% Just make sure we have everythign on the
 %% code path.
 smoke() ->
     {ok, true} = jiffy:decode(<<"true">>),
     {ok, <<"true">>} = jiffy:encode(true),
-    true = ejson_test:decode(<<"true">>),
-    <<"true">> = ejson_test:encode(true),
-    true = mochijson2:decode(<<"true">>),
-    <<"true">> = mochijson2:encode(true).
+    {ok, true} = ejson_test:decode(<<"true">>),
+    {ok, <<"true">>} = ejson_test:encode(true),
+    {ok, true} = mochijson2:decode(<<"true">>),
+    {ok, <<"true">>} = mochijson2:encode(true).
 
 
 load_doc() ->
-    {ok, [Doc]} = file:consult("data/base_doc.erl"),
+    {ok, [Doc]} = file:consult(docname()),
     Doc.
 
 load_json() ->
-    {ok, [Doc]} = file:consult("data/base_doc.erl"),
-    iolist_to_binary(mochijson2:encode(Doc)).
+    {ok, Json} = mochijson2:encode(load_doc()),
+    iolist_to_binary(Json).
 
 
 test_encode(Workers, Iters, Module, Doc) ->
@@ -35,7 +36,7 @@ test_encode(Workers, Iters, Module, Doc) ->
 run_encode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
 run_encode(Dst, Iters, Module, Doc, Total) ->
-    Time = element(1, timer:tc(Module, encode, [Doc])),
+    {Time, {ok, _}} = timer:tc(Module, encode, [Doc]),
     run_encode(Dst, Iters-1, Module, Doc, Total+Time).
 
 
@@ -49,7 +50,7 @@ test_decode(Workers, Iters, Module, Json) ->
 run_decode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
 run_decode(Dst, Iters, Module, Json, Total) ->
-    Time = element(1, timer:tc(Module, decode, [Json])),
+    {Time, {ok, _}} = timer:tc(Module, decode, [Json]),
     run_decode(Dst, Iters-1, Module, Json, Total+Time).
 
 

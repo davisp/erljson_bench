@@ -2,4 +2,4 @@
 all: compile
 
 compile:
-	./rebar compile
+	./rebar get-deps compile
