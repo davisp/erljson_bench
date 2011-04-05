@@ -42,6 +42,8 @@
 -export([encoder/1, encode/1]).
 -export([decoder/1, decode/1]).
 
+-compile(native).
+
 % This is a macro to placate syntax highlighters..
 -define(Q, $\").
 -define(ADV_COL(S, N), S#decoder{offset=N+S#decoder.offset,

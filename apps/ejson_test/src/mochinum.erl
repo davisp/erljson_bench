@@ -13,6 +13,8 @@
 -author("Bob Ippolito <bob@mochimedia.com>").
 -export([digits/1, frexp/1, int_pow/2, int_ceil/1]).
 
+-compile(native).
+
 %% IEEE 754 Float exponent bias
 -define(FLOAT_BIAS, 1022).
 -define(MIN_EXP, -1074).
