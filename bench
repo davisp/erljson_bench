@@ -1,5 +1,5 @@
 #!/usr/bin/env escript
-%%! -env ERL_LIBS ./deps -pa ./ebin
+%%! -env ERL_LIBS ./deps:./apps -pa ./ebin
 
 main(Arg) ->
     erljson_bench:main(Arg).
