@@ -11,7 +11,9 @@ smoke() ->
     lists:map(fun(Module) ->
         {ok, true} = Module:decode(<<"true">>),
         {ok, <<"true">>} = Module:encode(true)
-    end, [jiffy, ejson_test, mochijson2]).
+    end, [json, ejson_test, mochijson2]),
+    true = jiffy:decode(<<"true">>),
+    <<"true">> = jiffy:encode(true).
 
 
 load_doc(DocName) ->
@@ -33,7 +35,7 @@ test_encode(Workers, Iters, Module, Doc) ->
 run_encode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
 run_encode(Dst, Iters, Module, Doc, Total) ->
-    {Time, {ok, _}} = timer:tc(Module, encode, [Doc]),
+    {Time, _} = timer:tc(Module, encode, [Doc]),
     run_encode(Dst, Iters-1, Module, Doc, Total+Time).
 
 
@@ -47,7 +49,7 @@ test_decode(Workers, Iters, Module, Json) ->
 run_decode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
 run_decode(Dst, Iters, Module, Json, Total) ->
-    {Time, {ok, _}} = timer:tc(Module, decode, [Json]),
+    {Time, _} = timer:tc(Module, decode, [Json]),
     run_decode(Dst, Iters-1, Module, Json, Total+Time).
 
 
@@ -63,16 +65,18 @@ main([]) ->
     main(["base_doc.erl"]);
 main([DocName]) ->
     smoke(),
+
+    io:format("Decoding...~n", []),
     Doc = load_doc(DocName),
     test_encode(workers(), iters(), jiffy, Doc),
-    timer:sleep(5000),
     test_encode(workers(), iters(), json, Doc),
     test_encode(workers(), iters(), ejson_test, Doc),
     test_encode(workers(), iters(), mochijson2, Doc),
 
+    io:format("Encoding...~n", []),
     Json = load_json(DocName),
-   
     test_decode(workers(), iters(), jiffy, Json),
+    test_decode(workers(), iters(), json, Json),
     test_decode(workers(), iters(), ejson_test, Json),
     test_decode(workers(), iters(), mochijson2, Json),
 
