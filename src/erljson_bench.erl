@@ -30,7 +30,7 @@ test_encode(Workers, Iters, Module, Doc) ->
     Fun = fun() -> run_encode(Self, Iters, Module, Doc, 0) end,
     [spawn(Fun) || _ <- lists:seq(1, Workers)],
     Total = collect_times(Workers, 0),
-    io:format("encode: ~15s: ~8b~n", [Module, Total]).
+    io:format("encode: ~15s: ~16b~n", [Module, Total]).
 
 run_encode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
@@ -44,7 +44,7 @@ test_decode(Workers, Iters, Module, Json) ->
     Fun = fun() -> run_decode(Self, Iters, Module, Json, 0) end,
     [spawn(Fun) || _ <- lists:seq(1, Workers)],
     Total = collect_times(Workers, 0),
-    io:format("decode: ~15s: ~8b~n", [Module, Total]).
+    io:format("decode: ~15s: ~16b~n", [Module, Total]).
 
 run_decode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
@@ -68,8 +68,10 @@ main([DocName]) ->
 
     Doc = load_doc(DocName),
     Json = load_json(DocName),
-    
+   
     Modules = shuffle([jiffy, json, ejson_test, mochijson2]),
+
+    io:format("Module order is random!~n~n", []),
 
     lists:foreach(fun(M) ->
         test_encode(workers(), iters(), M, Doc)
