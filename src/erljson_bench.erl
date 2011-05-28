@@ -4,25 +4,22 @@
 
 workers() -> 10.
 iters() -> 1000.
-docname() -> "data/large_doc.erl".
 
 %% Just make sure we have everythign on the
 %% code path.
 smoke() ->
-    {ok, true} = jiffy:decode(<<"true">>),
-    {ok, <<"true">>} = jiffy:encode(true),
-    {ok, true} = ejson_test:decode(<<"true">>),
-    {ok, <<"true">>} = ejson_test:encode(true),
-    {ok, true} = mochijson2:decode(<<"true">>),
-    {ok, <<"true">>} = mochijson2:encode(true).
+    lists:map(fun(Module) ->
+        {ok, true} = Module:decode(<<"true">>),
+        {ok, <<"true">>} = Module:encode(true)
+    end, [jiffy, ejson_test, mochijson2]).
 
 
-load_doc() ->
-    {ok, [Doc]} = file:consult(docname()),
+load_doc(DocName) ->
+    {ok, [Doc]} = file:consult("data/" ++ DocName),
     Doc.
 
-load_json() ->
-    {ok, Json} = mochijson2:encode(load_doc()),
+load_json(DocName) ->
+    {ok, Json} = mochijson2:encode(load_doc(DocName)),
     iolist_to_binary(Json).
 
 
@@ -62,15 +59,18 @@ collect_times(N, Total) ->
     end,
     collect_times(N-1, Total+Time).
 
-
-main(_) ->
+main([]) ->
+    main(["base_doc.erl"]);
+main([DocName]) ->
     smoke(),
-    Doc = load_doc(),
+    Doc = load_doc(DocName),
     test_encode(workers(), iters(), jiffy, Doc),
+    timer:sleep(5000),
+    test_encode(workers(), iters(), json, Doc),
     test_encode(workers(), iters(), ejson_test, Doc),
     test_encode(workers(), iters(), mochijson2, Doc),
 
-    Json = load_json(),
+    Json = load_json(DocName),
    
     test_decode(workers(), iters(), jiffy, Json),
     test_decode(workers(), iters(), ejson_test, Json),

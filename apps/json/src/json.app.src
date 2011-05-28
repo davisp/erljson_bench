@@ -1,0 +1,11 @@
+% This file is part of eep0018 released under the MIT license. 
+% See the LICENSE file for more information.
+{application, json, [
+    {description, "JSON Nifs"},
+    {vsn, "0.0.1"},
+    {modules, []},
+    {registered, []},
+    {applications, [kernel, stdlib]},
+    {env, []}
+]}.
+
