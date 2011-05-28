@@ -66,20 +66,23 @@ main([]) ->
 main([DocName]) ->
     smoke(),
 
-    io:format("Decoding...~n", []),
     Doc = load_doc(DocName),
-    test_encode(workers(), iters(), jiffy, Doc),
-    test_encode(workers(), iters(), json, Doc),
-    test_encode(workers(), iters(), ejson_test, Doc),
-    test_encode(workers(), iters(), mochijson2, Doc),
-
-    io:format("Encoding...~n", []),
     Json = load_json(DocName),
-    test_decode(workers(), iters(), jiffy, Json),
-    test_decode(workers(), iters(), json, Json),
-    test_decode(workers(), iters(), ejson_test, Json),
-    test_decode(workers(), iters(), mochijson2, Json),
+    
+    Modules = shuffle([jiffy, json, ejson_test, mochijson2]),
+
+    lists:foreach(fun(M) ->
+        test_encode(workers(), iters(), M, Doc)
+    end, Modules),
+   
+    io:format("~n", []),
+
+    lists:foreach(fun(M) ->
+        test_decode(workers(), iters(), M, Json)
+    end, Modules),
 
     ok.
     
-
+shuffle(List) ->
+    List2 = [{random:uniform(), M} || M <- List],
+    [M || {_, M} <- lists:sort(List2)].

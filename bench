@@ -2,4 +2,5 @@
 %%! -env ERL_LIBS ./deps:./apps -pa ./ebin
 
 main(Arg) ->
+    random:seed(now()),
     erljson_bench:main(Arg).
