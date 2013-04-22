@@ -12,6 +12,8 @@ smoke() ->
         {ok, true} = Module:decode(<<"true">>),
         {ok, <<"true">>} = Module:encode(true)
     end, [json, ejson_test, mochijson2]),
+    true = jsonx:decode(<<"true">>),
+    <<"true">> = jsonx:encode(true),
     true = jiffy:decode(<<"true">>),
     <<"true">> = jiffy:encode(true).
 
@@ -69,7 +71,7 @@ main([DocName]) ->
     Doc = load_doc(DocName),
     Json = load_json(DocName),
    
-    Modules = shuffle([jiffy, json, ejson_test, mochijson2]),
+    Modules = shuffle([jiffy, jsonx, json, ejson_test, mochijson2]),
 
     io:format("Module order is random!~n~n", []),
 
