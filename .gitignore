@@ -1,2 +1,4 @@
+*.d
+.rebar
 deps/
 ebin/
