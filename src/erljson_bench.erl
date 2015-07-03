@@ -11,11 +11,11 @@ smoke() ->
     lists:map(fun(Module) ->
         {ok, true} = Module:decode(<<"true">>),
         {ok, <<"true">>} = Module:encode(true)
-    end, [json, ejson_test, mochijson2]),
-    true = jsonx:decode(<<"true">>),
-    <<"true">> = jsonx:encode(true),
-    true = jiffy:decode(<<"true">>),
-    <<"true">> = jiffy:encode(true).
+    end, [json, ejson_test]),
+    lists:map(fun(Module) ->
+        true = Module:decode(<<"true">>),
+        <<"true">> = Module:encode(true)
+    end, [jiffy, jsonx, mochijson2]).
 
 
 load_doc(DocName) ->
@@ -23,7 +23,7 @@ load_doc(DocName) ->
     Doc.
 
 load_json(DocName) ->
-    {ok, Json} = mochijson2:encode(load_doc(DocName)),
+    Json = mochijson2:encode(load_doc(DocName)),
     iolist_to_binary(Json).
 
 
