@@ -36,6 +36,10 @@ test_encode(Workers, Iters, Module, Doc) ->
 
 run_encode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
+run_encode(Dst, Iters, Module, Doc0, Total) when Module =:= jsx ->
+    Doc = jsonx:decode(jsonx:encode(Doc0), [{format, proplist}]), 
+    {Time, _} = timer:tc(Module, encode, [Doc]),
+    run_encode(Dst, Iters-1, Module, Doc, Total+Time);
 run_encode(Dst, Iters, Module, Doc, Total) ->
     {Time, _} = timer:tc(Module, encode, [Doc]),
     run_encode(Dst, Iters-1, Module, Doc, Total+Time).
@@ -71,7 +75,7 @@ main([DocName]) ->
     Doc = load_doc(DocName),
     Json = load_json(DocName),
    
-    Modules = shuffle([jiffy, jsonx, json, ejson_test, mochijson2]),
+    Modules = shuffle([jiffy, jsonx, json, jsx, ejson_test, mochijson2]),
 
     io:format("Module order is random!~n~n", []),
 
