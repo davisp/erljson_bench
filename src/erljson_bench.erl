@@ -32,12 +32,12 @@ test_encode(Workers, Iters, Module, Doc) ->
     Fun = fun() -> run_encode(Self, Iters, Module, Doc, 0) end,
     [spawn(Fun) || _ <- lists:seq(1, Workers)],
     Total = collect_times(Workers, 0),
-    io:format("encode: ~15s: ~16b~n", [Module, Total]).
+    {Total, Module}.
 
 run_encode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
 run_encode(Dst, Iters, Module, Doc0, Total) when Module =:= jsx ->
-    Doc = jsonx:decode(jsonx:encode(Doc0), [{format, proplist}]), 
+    Doc = jsonx:decode(jsonx:encode(Doc0), [{format, proplist}]),
     {Time, _} = timer:tc(Module, encode, [Doc]),
     run_encode(Dst, Iters-1, Module, Doc, Total+Time);
 run_encode(Dst, Iters, Module, Doc, Total) ->
@@ -50,7 +50,7 @@ test_decode(Workers, Iters, Module, Json) ->
     Fun = fun() -> run_decode(Self, Iters, Module, Json, 0) end,
     [spawn(Fun) || _ <- lists:seq(1, Workers)],
     Total = collect_times(Workers, 0),
-    io:format("decode: ~15s: ~16b~n", [Module, Total]).
+    {Total, Module}.
 
 run_decode(Dst, 0, _, _, Total) ->
     Dst ! {time, Total};
@@ -74,23 +74,29 @@ main([DocName]) ->
 
     Doc = load_doc(DocName),
     Json = load_json(DocName),
-   
+
     Modules = shuffle([jiffy, jsonx, json, jsx, ejson_test, mochijson2]),
 
-    io:format("Module order is random!~n~n", []),
-
-    lists:foreach(fun(M) ->
+    EncodeInfo = lists:map(fun(M) ->
         test_encode(workers(), iters(), M, Doc)
     end, Modules),
-   
-    io:format("~n", []),
 
-    lists:foreach(fun(M) ->
+    DecodeInfo = lists:map(fun(M) ->
         test_decode(workers(), iters(), M, Json)
     end, Modules),
 
+    lists:foreach(fun({Time, Module}) ->
+        io:format("encode: ~15s: ~16b~n", [Module, Time])
+    end, lists:sort(EncodeInfo)),
+
+    io:format("~n~n", []),
+
+    lists:foreach(fun({Time, Module}) ->
+        io:format("decode: ~15s: ~16b~n", [Module, Time])
+    end, lists:sort(DecodeInfo)),
+
     ok.
-    
+
 shuffle(List) ->
     List2 = [{random:uniform(), M} || M <- List],
     [M || {_, M} <- lists:sort(List2)].
