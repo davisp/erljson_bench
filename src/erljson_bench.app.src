@@ -1,6 +1,6 @@
 {application, erljson_bench, [
-    {description, "Binky!"},
-    {vsn, "%VSN%"},
+    {description, "Functions for benchmarking JSON encoding and decoding applications"},
+    {vsn, git},
     {registered, []},
     {mod, reloading, []},
     {applications, [kernel]}

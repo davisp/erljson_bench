@@ -1,5 +1,23 @@
 %% @author Bob Ippolito <bob@mochimedia.com>
 %% @copyright 2007 Mochi Media, Inc.
+%%
+%% Permission is hereby granted, free of charge, to any person obtaining a
+%% copy of this software and associated documentation files (the "Software"),
+%% to deal in the Software without restriction, including without limitation
+%% the rights to use, copy, modify, merge, publish, distribute, sublicense,
+%% and/or sell copies of the Software, and to permit persons to whom the
+%% Software is furnished to do so, subject to the following conditions:
+%%
+%% The above copyright notice and this permission notice shall be included in
+%% all copies or substantial portions of the Software.
+%%
+%% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+%% THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+%% DEALINGS IN THE SOFTWARE.
 
 %% @doc Yet another JSON (RFC 4627) library for Erlang. mochijson2 works
 %%      with binaries as strings, arrays as lists (without an {array, _})
@@ -40,11 +58,11 @@
 -module(mochijson2).
 -author('bob@mochimedia.com').
 -export([encoder/1, encode/1]).
--export([decoder/1, decode/1]).
+-export([decoder/1, decode/1, decode/2]).
 
 -compile(native).
 
-% This is a macro to placate syntax highlighters..
+%% This is a macro to placate syntax highlighters..
 -define(Q, $\").
 -define(ADV_COL(S, N), S#decoder{offset=N+S#decoder.offset,
                                  column=N+S#decoder.column}).
@@ -66,15 +84,14 @@
 -define(IS_WHITESPACE(C),
         (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 
-%% @type iolist() = [char() | binary() | iolist()]
-%% @type iodata() = iolist() | binary()
 %% @type json_string() = atom | binary()
 %% @type json_number() = integer() | float()
 %% @type json_array() = [json_term()]
 %% @type json_object() = {struct, [{json_string(), json_term()}]}
+%% @type json_eep18_object() = {[{json_string(), json_term()}]}
 %% @type json_iolist() = {json, iolist()}
 %% @type json_term() = json_string() | json_number() | json_array() |
-%%                     json_object() | json_iolist()
+%%                     json_object() | json_eep18_object() | json_iolist()
 
 -record(encoder, {handler=null,
                   utf8=false}).
@@ -96,7 +113,7 @@ encoder(Options) ->
 %% @spec encode(json_term()) -> iolist()
 %% @doc Encode the given as JSON to an iolist.
 encode(Any) ->
-    {ok, json_encode(Any, #encoder{})}.
+    json_encode(Any, #encoder{}).
 
 %% @spec decoder([decoder_option()]) -> function()
 %% @doc Create a decoder/1 with the given options.
@@ -104,10 +121,18 @@ decoder(Options) ->
     State = parse_decoder_options(Options, #decoder{}),
     fun (O) -> json_decode(O, State) end.
 
+%% @spec decode(iolist(), [{format, proplist | eep18 | struct}]) -> json_term()
+%% @doc Decode the given iolist to Erlang terms using the given object format
+%%      for decoding, where proplist returns JSON objects as [{binary(), json_term()}]
+%%      proplists, eep18 returns JSON objects as {[binary(), json_term()]}, and struct
+%%      returns them as-is.
+decode(S, Options) ->
+    json_decode(S, parse_decoder_options(Options, #decoder{})).
+
 %% @spec decode(iolist()) -> json_term()
 %% @doc Decode the given iolist to Erlang terms.
 decode(S) ->
-    {ok, json_decode(S, #decoder{})}.
+    json_decode(S, #decoder{}).
 
 %% Internal API
 
@@ -121,7 +146,10 @@ parse_encoder_options([{utf8, Switch} | Rest], State) ->
 parse_decoder_options([], State) ->
     State;
 parse_decoder_options([{object_hook, Hook} | Rest], State) ->
-    parse_decoder_options(Rest, State#decoder{object_hook=Hook}).
+    parse_decoder_options(Rest, State#decoder{object_hook=Hook});
+parse_decoder_options([{format, Format} | Rest], State)
+  when Format =:= struct orelse Format =:= eep18 orelse Format =:= proplist ->
+    parse_decoder_options(Rest, State#decoder{object_hook=Format}).
 
 json_encode(true, _State) ->
     <<"true">>;
@@ -141,14 +169,16 @@ json_encode([{K, _}|_] = Props, State) when (K =/= struct andalso
     json_encode_proplist(Props, State);
 json_encode({struct, Props}, State) when is_list(Props) ->
     json_encode_proplist(Props, State);
+json_encode({Props}, State) when is_list(Props) ->
+    json_encode_proplist(Props, State);
+json_encode({}, State) ->
+    json_encode_proplist([], State);
 json_encode(Array, State) when is_list(Array) ->
     json_encode_array(Array, State);
 json_encode({array, Array}, State) when is_list(Array) ->
     json_encode_array(Array, State);
 json_encode({json, IoList}, _State) ->
     IoList;
-json_encode({L}, State) when is_list(L) ->
-    json_encode({struct, L}, State);
 json_encode(Bad, #encoder{handler=null}) ->
     exit({json_encode, {bad_term, Bad}});
 json_encode(Bad, State=#encoder{handler=Handler}) ->
@@ -322,12 +352,14 @@ decode1(B, S=#decoder{state=null}) ->
             decode_object(B, S1)
     end.
 
-make_object(V, #decoder{object_hook=null}) ->
+make_object(V, #decoder{object_hook=N}) when N =:= null orelse N =:= struct ->
     V;
-make_object(V, #decoder{object_hook=_Hook}) ->
-    %Hook(V).
-    {struct, L} = V,
-    {L}.
+make_object({struct, P}, #decoder{object_hook=eep18}) ->
+    {P};
+make_object({struct, P}, #decoder{object_hook=proplist}) ->
+    P;
+make_object(V, #decoder{object_hook=Hook}) ->
+    Hook(V).
 
 decode_object(B, S) ->
     decode_object(B, S#decoder{state=key}, []).
@@ -776,7 +808,7 @@ key_encode_test() ->
     ?assertEqual(
        <<"{\"foo\":1}">>,
        iolist_to_binary(encode({struct, [{"foo", 1}]}))),
-	?assertEqual(
+    ?assertEqual(
        <<"{\"foo\":1}">>,
        iolist_to_binary(encode([{foo, 1}]))),
     ?assertEqual(
@@ -844,12 +876,34 @@ float_test() ->
 
 handler_test() ->
     ?assertEqual(
-       {'EXIT',{json_encode,{bad_term,{}}}},
-       catch encode({})),
-    F = fun ({}) -> [] end,
+       {'EXIT',{json_encode,{bad_term,{x,y}}}},
+       catch encode({x,y})),
+    F = fun ({x,y}) -> [] end,
     ?assertEqual(
        <<"[]">>,
-       iolist_to_binary((encoder([{handler, F}]))({}))),
+       iolist_to_binary((encoder([{handler, F}]))({x, y}))),
     ok.
+
+encode_empty_test_() ->
+    [{A, ?_assertEqual(<<"{}">>, iolist_to_binary(encode(B)))}
+     || {A, B} <- [{"eep18 {}", {}},
+                   {"eep18 {[]}", {[]}},
+                   {"{struct, []}", {struct, []}}]].
+
+encode_test_() ->
+    P = [{<<"k">>, <<"v">>}],
+    JSON = iolist_to_binary(encode({struct, P})),
+    [{atom_to_list(F),
+      ?_assertEqual(JSON, iolist_to_binary(encode(decode(JSON, [{format, F}]))))}
+     || F <- [struct, eep18, proplist]].
+
+format_test_() ->
+    P = [{<<"k">>, <<"v">>}],
+    JSON = iolist_to_binary(encode({struct, P})),
+    [{atom_to_list(F),
+      ?_assertEqual(A, decode(JSON, [{format, F}]))}
+     || {F, A} <- [{struct, {struct, P}},
+                   {eep18, {P}},
+                   {proplist, P}]].
 
 -endif.
